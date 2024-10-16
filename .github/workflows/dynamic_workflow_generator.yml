@@ -1,0 +1,32 @@
+name: Dynamic Job Creation Workflow
+
+on:
+    push:
+        branches:
+            - main
+
+
+jobs:
+    generate_matrix:
+        runs-on: ubuntu-latest
+        outputs:
+            matrix: ${{ steps.set-matrix.outputs.matrix }}
+        steps:
+            - uses: actions/checkout@v4
+            - name: Generate Matrix
+              id: set-matrix
+              run: |
+                python generate_matrix.py
+                matrix=$(cat matrix.json)
+                echo "::set-output name=matrix::$matrix"
+
+    dynamic_jobs:
+        needs: generate_matrix
+        runs-on: ubuntu-latest
+        strategy:
+            matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix).include }}
+
+        steps:
+            - uses: actions/checkout@v4
+            - run: chmod +x ./run_task.sh
+            - run: ./run_task.sh ${{ matrix.project }}
