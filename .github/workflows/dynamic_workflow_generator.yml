@@ -10,23 +10,25 @@ jobs:
     generate_matrix:
         runs-on: ubuntu-latest
         outputs:
-            matrix: ${{ steps.set-matrix.outputs.matrix }}
+            projects: ${{ steps.projects.outputs.projects }}
         steps:
             - uses: actions/checkout@v4
-            - name: Generate Matrix
-              id: set-matrix
+
+            - name: Generate Projects
+              id: projects
               run: |
                 python generate_matrix.py
-                matrix=$(cat matrix.json)
-                echo "::set-output name=matrix::$matrix"
+                matrix=$(cat matrix.json | jq -c '.')
+                echo "projects=$matrix" >> $GITHUB_OUTPUT
 
     dynamic_jobs:
         needs: generate_matrix
         runs-on: ubuntu-latest
         strategy:
-            matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix).include }}
+            matrix:
+                projects: ${{ fromJson(needs.generate_matrix.outputs.projects).include }}
 
         steps:
             - uses: actions/checkout@v4
             - run: chmod +x ./run_task.sh
-            - run: ./run_task.sh ${{ matrix.project }}
+            - run: ./run_task.sh ${{ matrix.projects.project }}
